@@ -69,11 +69,13 @@ class ColdChainRepositoryImpl : ColdChainRepository {
     }
 
     private fun mapPayloadToData(payload: ColdChainPayload): ColdChainData {
-        val doorState = when (payload.puertaAbierta) {
+        val doorState = when (payload.puertaAbiertaFinal) {
             true -> DoorState.OPEN
             false -> DoorState.CLOSED
             null -> DoorState.CLOSED
         }
+
+        val temp = payload.tempFinal
 
         val systemStatus = when (payload.estadoSistema?.lowercase()) {
             "segura", "safe", "ok" -> SystemStatus.SAFE
@@ -81,13 +83,14 @@ class ColdChainRepositoryImpl : ColdChainRepository {
             "alerta", "fuga", "critical" -> SystemStatus.COLD_LEAK_ALERT
             else -> {
                 if (doorState == DoorState.OPEN) SystemStatus.DOOR_OPEN
+                else if (temp != null && temp > 8.0) SystemStatus.COLD_LEAK_ALERT
                 else SystemStatus.SAFE
             }
         }
 
         return ColdChainData(
-            temperature = payload.temperatura,
-            humidity = payload.humedad,
+            temperature = temp,
+            humidity = payload.humedadFinal,
             doorState = doorState,
             systemStatus = systemStatus,
             timestamp = payload.timestamp ?: "Ahora",

@@ -19,11 +19,23 @@ object TestScenarios {
             description = "Temperatura a 3.8°C, puerta CERRADA, sistema en Cadena de Frío Segura.",
             jsonContent = """
                 {
-                    "temperatura": 3.8,
-                    "humedad": 58.0,
-                    "puerta_abierta": false,
+                    "temperaturaC": 3.8,
+                    "humedadPct": 58.0,
+                    "puertaAbierta": false,
                     "estado_sistema": "segura",
                     "timestamp": "Hace 2 min"
+                }
+            """.trimIndent(),
+        ),
+        TestScenario(
+            id = "esp32_wokwi",
+            name = "⚡ ESP32 Wokwi Hardware",
+            description = "Formato directo del código C++ del ESP32 (temperaturaC, humedadPct, puertaAbierta).",
+            jsonContent = """
+                {
+                    "temperaturaC": 6.0,
+                    "humedadPct": 64.5,
+                    "puertaAbierta": false
                 }
             """.trimIndent(),
         ),
