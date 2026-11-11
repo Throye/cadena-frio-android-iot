@@ -16,10 +16,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.ui.monitor.MonitorScreen
+import com.example.myapplication.ui.settings.SettingsScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 enum class DashboardTab(
@@ -57,19 +63,30 @@ enum class DashboardTab(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: DashboardViewModel = viewModel(),
 ) {
     var selectedTab by remember { mutableStateOf(DashboardTab.MONITOR) }
+    val coldChainData by viewModel.coldChainData.collectAsState()
+    val selectedScenario by viewModel.selectedScenario.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.errorMessage.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(text = "Cadena de Frío - ${selectedTab.title}") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             )
         },
         bottomBar = {
@@ -82,35 +99,49 @@ fun DashboardScreen(
                         icon = {
                             Icon(
                                 imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title
+                                contentDescription = tab.title,
                             )
                         },
-                        label = { Text(text = tab.title) }
+                        label = { Text(text = tab.title) },
                     )
                 }
             }
-        }
+        },
     ) { innerPadding ->
         when (selectedTab) {
             DashboardTab.MONITOR -> {
                 MonitorScreen(
-                    modifier = Modifier.padding(innerPadding)
+                    systemStatus = coldChainData.systemStatus,
+                    doorState = coldChainData.doorState,
+                    temperature = coldChainData.temperature,
+                    humidity = coldChainData.humidity,
+                    modifier = Modifier.padding(innerPadding),
                 )
             }
-            DashboardTab.GRAFICOS, DashboardTab.AJUSTES -> {
+
+            DashboardTab.GRAFICOS -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Esta es la sección de '${selectedTab.title}'",
+                        text = "Esta es la sección de 'Gráficos'",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
                 }
+            }
+
+            DashboardTab.AJUSTES -> {
+                SettingsScreen(
+                    selectedScenario = selectedScenario,
+                    onScenarioSelected = { scenario -> viewModel.selectScenario(scenario) },
+                    onCustomJsonSubmitted = { customJson -> viewModel.applyJson(customJson) },
+                    modifier = Modifier.padding(innerPadding),
+                )
             }
         }
     }

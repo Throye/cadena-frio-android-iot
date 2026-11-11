@@ -1,12 +1,18 @@
 package com.example.myapplication.ui.monitor
 
+import androidx.compose.foundation.Canvas
+import java.util.Locale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,7 +37,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,6 +94,8 @@ fun MonitorScreen(
     modifier: Modifier = Modifier,
     systemStatus: SystemStatus = SystemStatus.SAFE,
     doorState: DoorState = DoorState.CLOSED,
+    temperature: Double? = null,
+    humidity: Double? = null,
     recentAlerts: List<AlertItem> = listOf(
         AlertItem("1", "Sistema iniciado correctamente", "Hace 10 min"),
         AlertItem("2", "Puerta abierta durante 2 min", "Hace 35 min", isCritical = true),
@@ -101,7 +113,10 @@ fun MonitorScreen(
         SystemStatusCard(status = systemStatus)
 
         // Tarjeta 2: Temperatura Interior
-        IndoorTemperatureCard()
+        IndoorTemperatureCard(
+            temperature = temperature,
+            humidity = humidity,
+        )
 
         // Tarjeta 3: Puerta Frigorífica
         RefrigeratorDoorCard(doorState = doorState)
@@ -164,8 +179,17 @@ fun SystemStatusCard(
 
 @Composable
 fun IndoorTemperatureCard(
+    temperature: Double?,
+    humidity: Double?,
     modifier: Modifier = Modifier,
+    maxLimit: Double = 8.0,
 ) {
+    val tempVal = temperature ?: 4.2
+    val inRange = tempVal <= maxLimit
+    val badgeBg = if (inRange) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)
+    val badgeFg = if (inRange) Color(0xFF1B5E20) else Color(0xFFB71C1C)
+    val badgeText = if (inRange) "EN RANGO" else "FUERA DE RANGO"
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -175,30 +199,188 @@ fun IndoorTemperatureCard(
         Column(
             modifier = Modifier.padding(16.dp),
         ) {
+            // Header Row: TITULO e Indicador "EN RANGO"
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Thermostat,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Thermostat,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "TEMPERATURA INTERIOR",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = badgeBg,
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeFg,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (temperature != null) {
+                // Lectura principal de Temperatura e Indicador de Humedad
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = String.format(Locale.US, "%.1f", temperature),
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0D47A1),
+                        )
+                        Text(
+                            text = " °C",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0D47A1),
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    }
+
+                    if (humidity != null) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Text(
+                                text = "Humedad: $humidity%",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Subtítulo de Límite Máximo
                 Text(
-                    text = "Temperatura interior",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "Límite máximo permitido: ${maxLimit.toInt()} °C",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Barra / Medidor de rango de temperatura
+                TemperatureRangeGauge(
+                    currentTemp = temperature,
+                    maxLimit = maxLimit,
+                )
+            } else {
+                Text(
+                    text = "Sin datos de sensor asignados de momento.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TemperatureRangeGauge(
+    currentTemp: Double,
+    minTemp: Double = -10.0,
+    maxTemp: Double = 25.0,
+    maxLimit: Double = 8.0,
+    modifier: Modifier = Modifier,
+) {
+    val fraction = ((currentTemp - minTemp) / (maxTemp - minTemp)).coerceIn(0.0, 1.0).toFloat()
+    val limitFraction = ((maxLimit - minTemp) / (maxTemp - minTemp)).coerceIn(0.0, 1.0).toFloat()
+
+    val gradient = Brush.horizontalGradient(
+        colors = listOf(
+            Color(0xFF29B6F6), // Azul claro (-10°C)
+            Color(0xFF26A69A), // Turquesa (0°C)
+            Color(0xFF66BB6A), // Verde (8°C)
+            Color(0xFFFFA726), // Naranja (15°C)
+            Color(0xFFEF5350), // Rojo (25°C)
+        ),
+    )
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            val totalWidth = maxWidth
+            val thumbOffset = totalWidth * fraction
+            val limitOffset = totalWidth * limitFraction
+
+            // Barra con gradiente
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(gradient),
+            )
+
+            // Línea punteada de límite (8°C)
+            Canvas(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                val limitX = limitOffset.toPx()
+                val pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f)
+                drawLine(
+                    color = Color(0xFF333333),
+                    start = Offset(limitX, 0f),
+                    end = Offset(limitX, size.height),
+                    strokeWidth = 4f,
+                    pathEffect = pathEffect,
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Sin datos de sensor asignados de momento.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            // Indicador vertical negro de la temperatura actual
+            Box(
+                modifier = Modifier
+                    .offset(x = (thumbOffset - 3.dp).coerceAtLeast(0.dp))
+                    .width(6.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.Black),
             )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Escala numérica (-10°, 0°, 10°, 20°, 25°)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "-10°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "0°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "10°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "20°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "25°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
