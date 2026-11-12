@@ -70,7 +70,7 @@ fun DashboardScreen(
     var selectedTab by remember { mutableStateOf(DashboardTab.MONITOR) }
     val coldChainData by viewModel.coldChainData.collectAsState()
     val historyReadings by viewModel.historyData.collectAsState()
-    val selectedScenario by viewModel.selectedScenario.collectAsState()
+    val appSettings by viewModel.appSettings.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -117,6 +117,7 @@ fun DashboardScreen(
                     doorState = coldChainData.doorState,
                     temperature = coldChainData.temperature,
                     humidity = coldChainData.humidity,
+                    maxTempLimit = appSettings.tempMaxLimit,
                     modifier = Modifier.padding(innerPadding),
                 )
             }
@@ -132,9 +133,15 @@ fun DashboardScreen(
 
             DashboardTab.AJUSTES -> {
                 SettingsScreen(
-                    selectedScenario = selectedScenario,
-                    onScenarioSelected = { scenario -> viewModel.selectScenario(scenario) },
-                    onCustomJsonSubmitted = { customJson -> viewModel.applyJson(customJson) },
+                    settings = appSettings,
+                    onTempMaxLimitChange = { viewModel.updateTempMaxLimit(it) },
+                    onHumidityMinLimitChange = { viewModel.updateHumidityMinLimit(it) },
+                    onHumidityMaxLimitChange = { viewModel.updateHumidityMaxLimit(it) },
+                    onWarnHumidityChange = { viewModel.updateWarnHumidity(it) },
+                    onPushNotificationsChange = { viewModel.updatePushNotifications(it) },
+                    onDoorAlertChange = { viewModel.updateDoorAlert(it) },
+                    onAlarmSoundChange = { viewModel.updateAlarmSound(it) },
+                    onResetToFactory = { viewModel.resetToFactorySettings() },
                     modifier = Modifier.padding(innerPadding),
                 )
             }

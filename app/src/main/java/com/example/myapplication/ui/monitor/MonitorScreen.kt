@@ -97,6 +97,7 @@ fun MonitorScreen(
     doorState: DoorState = DoorState.CLOSED,
     temperature: Double? = null,
     humidity: Double? = null,
+    maxTempLimit: Double = 8.0,
     recentAlerts: List<AlertItem> = listOf(
         AlertItem("1", "Puerta abierta detectada por más de 2 min", "Hace 2 min", isCritical = true),
         AlertItem("2", "Temperatura estabilizada a 4.2°C", "Hace 15 min"),
@@ -119,6 +120,7 @@ fun MonitorScreen(
         IndoorTemperatureCard(
             temperature = temperature,
             humidity = humidity,
+            maxLimit = maxTempLimit,
         )
 
         // Tarjeta 3: Puerta Frigorífica
