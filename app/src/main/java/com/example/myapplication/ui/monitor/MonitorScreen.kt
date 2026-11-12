@@ -29,8 +29,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -98,6 +100,8 @@ fun MonitorScreen(
     temperature: Double? = null,
     humidity: Double? = null,
     maxTempLimit: Double = 8.0,
+    minHumidityLimit: Double = 50.0,
+    maxHumidityLimit: Double = 85.0,
     recentAlerts: List<AlertItem> = listOf(
         AlertItem("1", "Puerta abierta detectada por más de 2 min", "Hace 2 min", isCritical = true),
         AlertItem("2", "Temperatura estabilizada a 4.2°C", "Hace 15 min"),
@@ -123,10 +127,18 @@ fun MonitorScreen(
             maxLimit = maxTempLimit,
         )
 
-        // Tarjeta 3: Puerta Frigorífica
+        // Tarjeta 3: Humedad Relativa
+        RelativeHumidityCard(
+            humidity = humidity,
+            temperature = temperature,
+            minLimit = minHumidityLimit,
+            maxLimit = maxHumidityLimit,
+        )
+
+        // Tarjeta 4: Puerta Frigorífica
         RefrigeratorDoorCard(doorState = doorState)
 
-        // Tarjeta 4: Alertas Recientes
+        // Tarjeta 5: Alertas Recientes
         RecentAlertsCard(alerts = recentAlerts)
     }
 }
@@ -386,6 +398,238 @@ fun TemperatureRangeGauge(
             Text(text = "10°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = "20°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = "25°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun RelativeHumidityCard(
+    humidity: Double?,
+    temperature: Double?,
+    modifier: Modifier = Modifier,
+    minLimit: Double = 50.0,
+    maxLimit: Double = 85.0,
+) {
+    val humVal = humidity ?: 62.0
+    val tempVal = temperature ?: 4.2
+    val inRange = humVal in minLimit..maxLimit
+    val badgeBg = if (inRange) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)
+    val badgeFg = if (inRange) Color(0xFF1B5E20) else Color(0xFFB71C1C)
+    val badgeText = if (inRange) "EN RANGO" else "FUERA DE RANGO"
+
+    val dewPoint = tempVal - ((100.0 - humVal) / 5.0)
+    val margin = (tempVal - dewPoint).coerceAtLeast(0.0)
+    val isCondensationRisk = margin < 3.0
+    val condBadgeBg = if (isCondensationRisk) Color(0xFFFFCDD2) else Color(0xFFC8E6C9)
+    val condBadgeFg = if (isCondensationRisk) Color(0xFFB71C1C) else Color(0xFF1B5E20)
+    val condBadgeText = if (isCondensationRisk) "Riesgo" else "Bajo"
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            // Header Row: TITULO e Indicador "EN RANGO"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.WaterDrop,
+                        contentDescription = null,
+                        tint = Color(0xFF006666),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "HUMEDAD RELATIVA",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = badgeBg,
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeFg,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (humidity != null) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "${humVal.toInt()}",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF006666),
+                    )
+                    Text(
+                        text = " %",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF006666),
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Rango permitido: ${minLimit.toInt()} – ${maxLimit.toInt()} %",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                HumidityRangeGauge(
+                    currentHumidity = humVal,
+                    minLimit = minLimit,
+                    maxLimit = maxLimit,
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 14.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "PUNTO DE ROCÍO",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = String.format(Locale.US, "%.1f °C", dewPoint),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1A1A),
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "CONDENSACIÓN",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = condBadgeBg,
+                            ) {
+                                Text(
+                                    text = condBadgeText,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = condBadgeFg,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = String.format(Locale.US, "Margen: %.1f °C", margin),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = "Sin datos de sensor asignados de momento.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HumidityRangeGauge(
+    currentHumidity: Double,
+    minLimit: Double = 50.0,
+    maxLimit: Double = 85.0,
+    modifier: Modifier = Modifier,
+) {
+    val fraction = (currentHumidity / 100.0).coerceIn(0.0, 1.0).toFloat()
+    val minFraction = (minLimit / 100.0).coerceIn(0.0, 1.0).toFloat()
+    val maxFraction = (maxLimit / 100.0).coerceIn(0.0, 1.0).toFloat()
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            val totalWidth = maxWidth
+            val thumbOffset = totalWidth * fraction
+            val startGreenOffset = totalWidth * minFraction
+            val endGreenOffset = totalWidth * maxFraction
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFFE0E0E0)),
+            )
+
+            Box(
+                modifier = Modifier
+                    .offset(x = startGreenOffset)
+                    .width((endGreenOffset - startGreenOffset).coerceAtLeast(0.dp))
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFF5CD699)),
+            )
+
+            Box(
+                modifier = Modifier
+                    .offset(x = (thumbOffset - 3.dp).coerceAtLeast(0.dp))
+                    .width(6.dp)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.Black),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "0%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "25%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "50%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "75%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = "100%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

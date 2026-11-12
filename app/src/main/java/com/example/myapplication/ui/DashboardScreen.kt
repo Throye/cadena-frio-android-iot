@@ -118,6 +118,8 @@ fun DashboardScreen(
                     temperature = coldChainData.temperature,
                     humidity = coldChainData.humidity,
                     maxTempLimit = appSettings.tempMaxLimit,
+                    minHumidityLimit = appSettings.humidityMinLimit,
+                    maxHumidityLimit = appSettings.humidityMaxLimit,
                     modifier = Modifier.padding(innerPadding),
                 )
             }
