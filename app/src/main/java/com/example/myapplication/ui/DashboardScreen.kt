@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myapplication.ui.charts.ChartsScreen
 import com.example.myapplication.ui.monitor.MonitorScreen
 import com.example.myapplication.ui.settings.SettingsScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -120,19 +121,11 @@ fun DashboardScreen(
             }
 
             DashboardTab.GRAFICOS -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Esta es la sección de 'Gráficos'",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+                ChartsScreen(
+                    currentTemp = coldChainData.temperature ?: 4.0,
+                    currentHumidity = coldChainData.humidity ?: 62.0,
+                    modifier = Modifier.padding(innerPadding),
+                )
             }
 
             DashboardTab.AJUSTES -> {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -97,9 +98,11 @@ fun MonitorScreen(
     temperature: Double? = null,
     humidity: Double? = null,
     recentAlerts: List<AlertItem> = listOf(
-        AlertItem("1", "Sistema iniciado correctamente", "Hace 10 min"),
-        AlertItem("2", "Puerta abierta durante 2 min", "Hace 35 min", isCritical = true),
-        AlertItem("3", "Temperatura estabilizada a 4°C", "Hace 1 hora"),
+        AlertItem("1", "Puerta abierta detectada por más de 2 min", "Hace 2 min", isCritical = true),
+        AlertItem("2", "Temperatura estabilizada a 4.2°C", "Hace 15 min"),
+        AlertItem("3", "Advertencia: Variación de humedad detectada", "Hace 40 min", isCritical = true),
+        AlertItem("4", "Sistema e interfaz iniciados correctamente", "Hace 1 hora"),
+        AlertItem("5", "Conexión con estación IoT restablecida", "Hace 2 horas"),
     ),
 ) {
     Column(
@@ -462,20 +465,39 @@ fun RecentAlertsCard(
             modifier = Modifier.padding(16.dp),
         ) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Alertas recientes",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Alertas recientes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (alerts.size > 4) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = "${alerts.size} notificaciones",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -488,6 +510,10 @@ fun RecentAlertsCard(
                 )
             } else {
                 Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     alerts.forEach { alert ->
