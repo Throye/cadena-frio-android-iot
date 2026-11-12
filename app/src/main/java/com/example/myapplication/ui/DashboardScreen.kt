@@ -69,6 +69,7 @@ fun DashboardScreen(
 ) {
     var selectedTab by remember { mutableStateOf(DashboardTab.MONITOR) }
     val coldChainData by viewModel.coldChainData.collectAsState()
+    val historyReadings by viewModel.historyData.collectAsState()
     val selectedScenario by viewModel.selectedScenario.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -124,6 +125,7 @@ fun DashboardScreen(
                 ChartsScreen(
                     currentTemp = coldChainData.temperature ?: 4.0,
                     currentHumidity = coldChainData.humidity ?: 62.0,
+                    historyReadings = historyReadings,
                     modifier = Modifier.padding(innerPadding),
                 )
             }

@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import java.util.Locale
 
+import com.example.myapplication.data.repository.HistoricalReading
+
 enum class MetricType(val label: String, val unit: String) {
     TEMPERATURE("Temperatura", "°C"),
     HUMIDITY("Humedad", "%"),
@@ -61,12 +63,13 @@ fun ChartsScreen(
     modifier: Modifier = Modifier,
     currentTemp: Double = 4.0,
     currentHumidity: Double = 62.0,
+    historyReadings: List<HistoricalReading> = emptyList(),
 ) {
     var selectedMetric by remember { mutableStateOf(MetricType.TEMPERATURE) }
     var selectedTimeRange by remember { mutableStateOf(TimeRange.MIN_30) }
 
-    val readings = remember(selectedMetric, selectedTimeRange, currentTemp, currentHumidity) {
-        generateDummyReadings(selectedMetric, selectedTimeRange, currentTemp, currentHumidity)
+    val readings = remember(selectedMetric, selectedTimeRange, currentTemp, currentHumidity, historyReadings) {
+        extractOrGenerateReadings(selectedMetric, selectedTimeRange, historyReadings, currentTemp, currentHumidity)
     }
 
     val minVal = readings.minOrNull() ?: 0.0
@@ -424,13 +427,14 @@ fun SummaryValueCard(
     }
 }
 
-private fun generateDummyReadings(
+private fun extractOrGenerateReadings(
     metric: MetricType,
     range: TimeRange,
+    history: List<HistoricalReading>,
     baseTemp: Double,
     baseHum: Double,
 ): List<Double> {
-    val count = when (range) {
+    val targetCount = when (range) {
         TimeRange.MIN_15 -> 15
         TimeRange.MIN_30 -> 30
         TimeRange.MIN_60 -> 60
@@ -438,13 +442,24 @@ private fun generateDummyReadings(
         TimeRange.WEEK -> 14
     }
 
-    val base = if (metric == MetricType.TEMPERATURE) baseTemp else baseHum
-    val variation = if (metric == MetricType.TEMPERATURE) 0.3 else 1.5
-
-    return List(count) { i ->
-        val noise = (kotlin.math.sin(i.toDouble() * 0.5) * variation)
-        (base + noise).coerceIn(0.0, 100.0)
+    val extracted = history.takeLast(targetCount).map {
+        if (metric == MetricType.TEMPERATURE) it.temperature else it.humidity
     }
+
+    if (extracted.size >= targetCount) {
+        return extracted
+    }
+
+    val firstVal = extracted.firstOrNull() ?: (if (metric == MetricType.TEMPERATURE) baseTemp else baseHum)
+    val missingCount = targetCount - extracted.size
+    val variation = if (metric == MetricType.TEMPERATURE) 0.3 else 1.2
+
+    val prefix = List(missingCount) { i ->
+        val noise = (kotlin.math.sin(i.toDouble() * 0.4) * variation)
+        (firstVal + noise).coerceIn(0.0, 100.0)
+    }
+
+    return prefix + extracted
 }
 
 @Preview(showBackground = true)

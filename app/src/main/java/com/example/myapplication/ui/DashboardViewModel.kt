@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import com.example.myapplication.data.repository.HistoricalReading
+
 /**
  * Capa 3: ViewModel que gestiona el estado de la UI y los eventos de error.
  */
@@ -23,6 +25,7 @@ class DashboardViewModel(
 ) : ViewModel() {
 
     val coldChainData: StateFlow<ColdChainData> = repository.dataFlow
+    val historyData: StateFlow<List<HistoricalReading>> = repository.historyFlow
 
     private val _errorMessage = MutableSharedFlow<String>()
     val errorMessage: SharedFlow<String> = _errorMessage.asSharedFlow()
