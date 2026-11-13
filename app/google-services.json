@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "956970379117",
+    "firebase_url": "https://cadenafrioiot-default-rtdb.firebaseio.com",
+    "project_id": "cadenafrioiot",
+    "storage_bucket": "cadenafrioiot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:956970379117:android:3dff56aba6451119c69c64",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6m6Cbn58QhvhBHuabdExmCHbqXY4X8bM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

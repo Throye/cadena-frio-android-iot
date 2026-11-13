@@ -4,6 +4,10 @@ import android.util.Log
 import com.example.myapplication.data.model.ColdChainPayload
 import com.example.myapplication.ui.monitor.DoorState
 import com.example.myapplication.ui.monitor.SystemStatus
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,10 +44,12 @@ interface ColdChainRepository {
     val historyFlow: StateFlow<List<HistoricalReading>>
     fun parseJsonPayload(jsonString: String): Result<ColdChainData>
     fun setCurrentScenarioJson(jsonString: String): Result<ColdChainData>
+    fun stopListening()
 }
 
 /**
- * Implementación del repositorio con acumulación de datos históricos en tiempo real.
+ * Implementación del repositorio con conexión en tiempo real a Firebase Realtime Database
+ * e integración resiliente con el simulador local.
  */
 class ColdChainRepositoryImpl : ColdChainRepository {
 
@@ -58,6 +64,82 @@ class ColdChainRepositoryImpl : ColdChainRepository {
 
     private val _historyFlow = MutableStateFlow(generateInitialHistory())
     override val historyFlow: StateFlow<List<HistoricalReading>> = _historyFlow.asStateFlow()
+
+    private val databaseReference = try {
+        FirebaseDatabase.getInstance().getReference("lecturas")
+    } catch (e: Exception) {
+        Log.e(TAG, "Error inicializando Firebase Database: ${e.message}")
+        null
+    }
+
+    private val firebaseListener = object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            if (!snapshot.exists() || !snapshot.hasChildren()) return
+
+            val readings = mutableListOf<HistoricalReading>()
+            var latestData: ColdChainData? = null
+
+            for (readingSnapshot in snapshot.children) {
+                val tempVal = parseDoubleSafely(readingSnapshot.child("temperaturaC").value)
+                    ?: parseDoubleSafely(readingSnapshot.child("temperatura").value)
+
+                val humVal = parseDoubleSafely(readingSnapshot.child("humedadPct").value)
+                    ?: parseDoubleSafely(readingSnapshot.child("humedad").value)
+
+                val doorVal = parseBooleanSafely(readingSnapshot.child("puertaAbierta").value)
+                    ?: parseBooleanSafely(readingSnapshot.child("puerta_abierta").value)
+
+                val payload = ColdChainPayload(
+                    temperaturaC = tempVal,
+                    humedadPct = humVal,
+                    puertaAbierta = doorVal,
+                )
+
+                val parsedData = mapPayloadToData(payload)
+
+                if (parsedData.temperature != null && parsedData.humidity != null) {
+                    readings.add(
+                        HistoricalReading(
+                            temperature = parsedData.temperature,
+                            humidity = parsedData.humidity,
+                            isDoorOpen = parsedData.doorState == DoorState.OPEN,
+                        )
+                    )
+                    latestData = parsedData
+                }
+            }
+
+            if (readings.isNotEmpty()) {
+                _historyFlow.value = readings
+            }
+
+            latestData?.let {
+                _dataFlow.value = it
+            }
+
+            Log.d(TAG, "Lecturas sincronizadas desde Firebase: ${readings.size}")
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            Log.e(TAG, "Error en tiempo real de Firebase: ${error.message}")
+        }
+    }
+
+    init {
+        try {
+            databaseReference?.addValueEventListener(firebaseListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al suscribir ValueEventListener en Firebase: ${e.message}")
+        }
+    }
+
+    override fun stopListening() {
+        try {
+            databaseReference?.removeEventListener(firebaseListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al desuscribir listener: ${e.message}")
+        }
+    }
 
     override fun parseJsonPayload(jsonString: String): Result<ColdChainData> {
         return try {
@@ -78,7 +160,6 @@ class ColdChainRepositoryImpl : ColdChainRepository {
         val result = parseJsonPayload(jsonString)
         result.onSuccess { data ->
             _dataFlow.value = data
-            // Agregar la nueva lectura recibida al historial acumulado en tiempo real
             val newReading = HistoricalReading(
                 temperature = data.temperature ?: 4.0,
                 humidity = data.humidity ?: 60.0,
@@ -87,6 +168,26 @@ class ColdChainRepositoryImpl : ColdChainRepository {
             _historyFlow.value = _historyFlow.value + newReading
         }
         return result
+    }
+
+    private fun parseDoubleSafely(value: Any?): Double? {
+        return when (value) {
+            is Double -> value
+            is Float -> value.toDouble()
+            is Long -> value.toDouble()
+            is Int -> value.toDouble()
+            is String -> value.toDoubleOrNull()
+            else -> null
+        }
+    }
+
+    private fun parseBooleanSafely(value: Any?): Boolean? {
+        return when (value) {
+            is Boolean -> value
+            is String -> value.equals("true", ignoreCase = true)
+            is Number -> value.toInt() != 0
+            else -> null
+        }
     }
 
     private fun mapPayloadToData(payload: ColdChainPayload): ColdChainData {
@@ -114,7 +215,7 @@ class ColdChainRepositoryImpl : ColdChainRepository {
             humidity = payload.humedadFinal,
             doorState = doorState,
             systemStatus = systemStatus,
-            timestamp = payload.timestamp ?: "Ahora",
+            timestamp = payload.timestamp ?: "En vivo",
         )
     }
 
@@ -123,7 +224,7 @@ class ColdChainRepositoryImpl : ColdChainRepository {
         humidity = 62.0,
         doorState = DoorState.CLOSED,
         systemStatus = SystemStatus.SAFE,
-        timestamp = "Reciente",
+        timestamp = "Conectado a Firebase",
     )
 
     private fun generateInitialHistory(): List<HistoricalReading> {
